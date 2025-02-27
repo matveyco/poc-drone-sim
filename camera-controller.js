@@ -63,7 +63,7 @@ function createCameraController(app) {
     CameraController.prototype.createDebugDisplay = function() {
         this.debugDisplay = document.createElement('div');
         this.debugDisplay.style.position = 'absolute';
-        this.debugDisplay.style.left = '10px';
+        this.debugDisplay.style.right = '10px';
         this.debugDisplay.style.bottom = '10px';
         this.debugDisplay.style.backgroundColor = 'rgba(0,0,0,0.5)';
         this.debugDisplay.style.color = 'white';
@@ -71,6 +71,8 @@ function createCameraController(app) {
         this.debugDisplay.style.fontFamily = 'monospace';
         this.debugDisplay.style.fontSize = '12px';
         this.debugDisplay.style.pointerEvents = 'none';
+        this.debugDisplay.style.textAlign = 'right';
+        this.debugDisplay.style.borderRadius = '4px';
         document.body.appendChild(this.debugDisplay);
         
         // Update debug display with current orbital parameters
@@ -110,7 +112,7 @@ function createCameraController(app) {
         // Set camera position at an absolute offset from drone
         // Positioned above and behind for a good view
         this.entity.setPosition(
-            dronePos.x ,   // Offset back in X
+            dronePos.x -5,   // Offset back in X
             dronePos.y - 15,   // 15 units above drone
             dronePos.z + 15    // Offset back in Z
         );
@@ -497,17 +499,25 @@ function createCameraController(app) {
         const dronePos = this.droneEntity.getPosition();
         const droneRot = this.droneEntity.getRotation();
         
-        // Position camera behind drone
-        const offset = new pc.Vec3(0, this.height, 10);
+        // In PlayCanvas, forward is negative Z, so to be "behind" we need negative Z
+        // This positions the camera behind the drone in world space
+        const offset = new pc.Vec3(0, this.height, -10);
         droneRot.transformVector(offset, offset);
         
+        // Position camera
         this.entity.setPosition(
             dronePos.x + offset.x,
             dronePos.y + offset.y,
             dronePos.z + offset.z
         );
         
+        // Look back at the drone (from behind)
         this.entity.lookAt(dronePos);
+        
+        // Log position for debugging
+        if (Math.random() < 0.01) {
+            console.log("Follow camera position:", this.entity.getPosition(), "Drone position:", dronePos);
+        }
         
         this.updateDebugDisplay();
     };
