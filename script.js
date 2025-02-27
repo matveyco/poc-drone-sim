@@ -17,8 +17,9 @@ camera.addComponent('camera', {
 camera.addComponent('script');
 app.root.addChild(camera);
 
-// Position the camera initially
-camera.setPosition(0, 10, 15);
+// Position the camera initially (this will be overridden by the controller)
+// Just a default position in case the controller initialization is delayed
+camera.setPosition(10, 10, 10);
 camera.lookAt(0, 0, 0);
 
 // Create directional light
@@ -47,15 +48,17 @@ ground.setLocalScale(50, 1, 50);
 ground.setPosition(0, -0.5, 0);
 app.root.addChild(ground);
 
-// Create drone entity
-const drone = new pc.Entity('drone');
+// Create drone entity at the origin
+const drone = new pc.Entity('Drone');
+drone.setPosition(0, 1, 0); // Place drone 1 unit above the ground
 app.root.addChild(drone);
 
-// Create the drone controller script
+// Create script definitions
 const DroneController = createDroneController(app);
+const CameraController = createCameraController(app);
 
-// Create the camera follow script
-const CameraFollow = createCameraFollow(app);
+// Start the application update loop
+app.start();
 
 // Load drone model
 app.assets.loadFromUrl('models/drone.glb', 'container', function(err, asset) {
@@ -72,18 +75,15 @@ app.assets.loadFromUrl('models/drone.glb', 'container', function(err, asset) {
         drone.addComponent('script');
         drone.script.create('droneController');
         
-        // Set up camera to follow drone
-        camera.script.create('cameraFollow', {
-            target: drone,
-            distance: 10,  // Distance behind the drone
-            height: 5      // Height above the drone
+        // Add camera controller with explicit parameters
+        camera.script.create('cameraController', {
+            droneEntity: drone,
+            distance: 15,
+            height: 5
         });
         
-        console.log('Drone model loaded successfully');
+        console.log('Drone and camera setup complete');
     } else {
         console.error('Error loading drone model:', err);
     }
-});
-
-// Start the application update loop
-app.start(); 
+}); 
