@@ -16,6 +16,9 @@ function createTerrainController(app) {
         this.createUI();
         this.fireworksEntities = [];
         
+        // Display initial instructions
+        this.showInstructions();
+        
         // Make positions available to other scripts
         app.globals = app.globals || {};
         app.globals.startPosition = this.startPosition;
@@ -148,10 +151,8 @@ function createTerrainController(app) {
     
     // Create UI for mission status
     TerrainController.prototype.createUI = function() {
-        // Create a screen
-        this.screen = new pc.Entity('MissionScreen');
-        this.screen.addComponent('screen', { resolution: new pc.Vec2(1920, 1080), screenSpace: true });
-        app.root.addChild(this.screen);
+        // Create a static HTML overlay for instructions
+        this.createHtmlInstructions();
         
         // Create mission complete text (hidden by default)
         this.missionCompleteUI = new pc.Entity('MissionComplete');
@@ -166,9 +167,126 @@ function createTerrainController(app) {
             anchor: new pc.Vec4(0.5, 0.5, 0.5, 0.5),
             pivot: new pc.Vec2(0.5, 0.5)
         });
+        
+        // Add to root directly to avoid screen entity issues
+        const screen = new pc.Entity('MissionScreen');
+        screen.addComponent('screen', { 
+            resolution: new pc.Vec2(1920, 1080), 
+            screenSpace: true 
+        });
+        app.root.addChild(screen);
+        
         this.missionCompleteUI.setLocalPosition(0, 100, 0);
         this.missionCompleteUI.enabled = false;
-        this.screen.addChild(this.missionCompleteUI);
+        screen.addChild(this.missionCompleteUI);
+        
+        this.screen = screen;
+    };
+    
+    // Create HTML-based instructions (more reliable than PlayCanvas UI)
+    TerrainController.prototype.createHtmlInstructions = function() {
+        // Remove any existing instructions
+        const existingInstructions = document.getElementById('mission-instructions');
+        if (existingInstructions) {
+            document.body.removeChild(existingInstructions);
+        }
+        
+        // Create container
+        const instructionsDiv = document.createElement('div');
+        instructionsDiv.id = 'mission-instructions';
+        instructionsDiv.style.cssText = `
+            position: fixed;
+            bottom: 150px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 20px 30px;
+            border-radius: 10px;
+            font-family: Arial, sans-serif;
+            font-size: 24px;
+            text-align: center;
+            z-index: 1000;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+            opacity: 0;
+            transition: opacity 0.5s;
+            max-width: 80%;
+        `;
+        
+        // Text container for typing effect
+        const textContainer = document.createElement('div');
+        textContainer.id = 'mission-text';
+        instructionsDiv.appendChild(textContainer);
+        
+        // Add to body
+        document.body.appendChild(instructionsDiv);
+        
+        // Save reference
+        this.instructionsElement = instructionsDiv;
+        this.textContainer = textContainer;
+    };
+    
+    // Show initial instructions with typing effect
+    TerrainController.prototype.showInstructions = function() {
+        if (!this.instructionsElement || !this.textContainer) return;
+        
+        // Make visible
+        this.instructionsElement.style.opacity = '1';
+        
+        // Full text to be typed
+        const fullText = "MISSION: Find and land on the RED circle to complete your objective";
+        
+        // Start with empty text
+        this.textContainer.textContent = '';
+        
+        // Type characters one by one
+        let charIndex = 0;
+        const typeInterval = setInterval(() => {
+            if (charIndex < fullText.length) {
+                this.textContainer.textContent += fullText.charAt(charIndex);
+                charIndex++;
+            } else {
+                clearInterval(typeInterval);
+                
+                // Add cursor at the end
+                const cursor = document.createElement('span');
+                cursor.id = 'typing-cursor';
+                cursor.textContent = '_';
+                cursor.style.animation = 'blink 1s infinite';
+                this.textContainer.appendChild(cursor);
+                
+                // Add blink animation
+                const style = document.createElement('style');
+                style.textContent = `
+                    @keyframes blink {
+                        0%, 100% { opacity: 1; }
+                        50% { opacity: 0; }
+                    }
+                `;
+                document.head.appendChild(style);
+                
+                // Hide after delay
+                setTimeout(() => {
+                    this.fadeOutInstructions();
+                }, 5000);
+            }
+        }, 70);
+    };
+    
+    // Fade out instructions
+    TerrainController.prototype.fadeOutInstructions = function() {
+        if (this.instructionsElement) {
+            this.instructionsElement.style.opacity = '0';
+            
+            // Remove after fade completes
+            setTimeout(() => {
+                if (this.instructionsElement && this.instructionsElement.parentNode) {
+                    document.body.removeChild(this.instructionsElement);
+                    this.instructionsElement = null;
+                    this.textContainer = null;
+                }
+            }, 1000);
+        }
     };
     
     // Method to check if drone is at the end position and landed
@@ -342,6 +460,12 @@ function createTerrainController(app) {
         const fireworksContainer = document.getElementById('fireworks-container');
         if (fireworksContainer) {
             document.body.removeChild(fireworksContainer);
+        }
+        
+        // Remove instructions if they exist
+        const instructionsElement = document.getElementById('mission-instructions');
+        if (instructionsElement) {
+            document.body.removeChild(instructionsElement);
         }
     };
     
