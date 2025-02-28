@@ -56,6 +56,7 @@ app.root.addChild(drone);
 // Create script definitions
 const DroneController = createDroneController(app);
 const CameraController = createCameraController(app);
+const TerrainController = createTerrainController(app);
 
 // Start the application update loop
 app.start();
@@ -82,7 +83,25 @@ app.assets.loadFromUrl('models/drone.glb', 'container', function(err, asset) {
             height: 5
         });
         
-        console.log('Drone and camera setup complete');
+        // Create terrain entity and add terrain controller
+        const terrainEntity = new pc.Entity('terrainEntity');
+        app.root.addChild(terrainEntity);
+        terrainEntity.addComponent('script');
+        terrainEntity.script.create('terrainController', {
+            size: 100,
+            height: 10,
+            segments: 50,
+            startPosition: new pc.Vec3(-30, 0, -30),
+            endPosition: new pc.Vec3(30, 0, 30)
+        });
+        
+        // Remove the original ground entity since we're replacing it
+        const existingGround = app.root.findByName('ground');
+        if (existingGround) {
+            existingGround.destroy();
+        }
+        
+        console.log('Drone, camera, and terrain setup complete');
     } else {
         console.error('Error loading drone model:', err);
     }

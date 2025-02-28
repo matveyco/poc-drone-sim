@@ -37,6 +37,22 @@ function createDroneController(app) {
         
         // Controls
         this.keyboard = new pc.Keyboard(document.body);
+        
+        // Initialize velocity
+        this.velocity = new pc.Vec3(0, 0, 0);
+        
+        // Set up physics properties
+        this.maxSpeed = 10;
+        this.acceleration = 5;
+        this.drag = 0.95;
+        this.rotationSpeed = 50;
+        this.liftSpeed = 5;
+        
+        // Position the drone at the start position if available
+        if (app.globals && app.globals.startPosition) {
+            const startPos = app.globals.startPosition;
+            this.entity.setPosition(startPos.x, 1.5, startPos.z);
+        }
     };
     
     // Find animation components
@@ -245,6 +261,18 @@ function createDroneController(app) {
                 propeller.setLocalRotation(newRot);
             }
         }
+    };
+    
+    // Check if the drone is currently landed
+    DroneController.prototype.isLanded = function() {
+        // Make sure velocity exists first
+        if (!this.velocity) {
+            this.velocity = new pc.Vec3(0, 0, 0);
+        }
+        
+        // Consider landed if very close to ground and not moving vertically
+        const altitude = this.entity.getPosition().y;
+        return altitude < 1.2 && Math.abs(this.velocity.y) < 0.1;
     };
     
     return DroneController;
