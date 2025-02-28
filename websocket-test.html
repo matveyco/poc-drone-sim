@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WebSocket Drone Connection Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        #connection-status { padding: 10px; border-radius: 5px; margin-bottom: 10px; }
+        .connected { background-color: #dff0d8; color: #3c763d; }
+        .disconnected { background-color: #f2dede; color: #a94442; }
+        .connecting { background-color: #fcf8e3; color: #8a6d3b; }
+        button { padding: 8px 15px; margin: 5px; cursor: pointer; }
+        #log { 
+            height: 300px; 
+            overflow-y: scroll; 
+            border: 1px solid #ccc; 
+            padding: 10px;
+            background-color: #f9f9f9;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>WebSocket Drone Connection Test</h1>
+    
+    <div id="connection-status" class="disconnected">Not Connected</div>
+    
+    <div>
+        <button id="connect-btn">Connect</button>
+        <button id="disconnect-btn" disabled>Disconnect</button>
+    </div>
+    
+    <div>
+        <h3>Test Commands</h3>
+        <button id="send-state-btn" disabled>Send State</button>
+        <button id="enable-control-btn" disabled>Enable External Control</button>
+        <button id="disable-control-btn" disabled>Disable External Control</button>
+    </div>
+    
+    <div id="log">
+        <div>Connection log will appear here...</div>
+    </div>
+    
+    <script>
+        // DOM elements
+        const statusEl = document.getElementById('connection-status');
+        const connectBtn = document.getElementById('connect-btn');
+        const disconnectBtn = document.getElementById('disconnect-btn');
+        const sendStateBtn = document.getElementById('send-state-btn');
+        const enableControlBtn = document.getElementById('enable-control-btn');
+        const disableControlBtn = document.getElementById('disable-control-btn');
+        const logEl = document.getElementById('log');
+        
+        // WebSocket connection
+        let socket = null;
+        
+        // Log message to the UI
+        function log(message, isError = false) {
+            const entry = document.createElement('div');
+            entry.textContent = `${new Date().toLocaleTimeString()}: ${message}`;
+            if (isError) {
+                entry.style.color = 'red';
+            }
+            logEl.appendChild(entry);
+            logEl.scrollTop = logEl.scrollHeight;
+        }
+        
+        // Update connection status
+        function updateStatus(status) {
+            statusEl.textContent = status;
+            statusEl.className = '';
+            
+            if (status === 'Connected') {
+                statusEl.classList.add('connected');
+                connectBtn.disabled = true;
+                disconnectBtn.disabled = false;
+                sendStateBtn.disabled = false;
+                enableControlBtn.disabled = false;
+                disableControlBtn.disabled = false;
+            } else if (status === 'Connecting...') {
+                statusEl.classList.add('connecting');
+                connectBtn.disabled = true;
+                disconnectBtn.disabled = true;
+                sendStateBtn.disabled = true;
+                enableControlBtn.disabled = true;
+                disableControlBtn.disabled = true;
+            } else {
+                statusEl.classList.add('disconnected');
+                connectBtn.disabled = false;
+                disconnectBtn.disabled = true;
+                sendStateBtn.disabled = true;
+                enableControlBtn.disabled = true;
+                disableControlBtn.disabled = true;
+            }
+        }
+        
+        // Connect to WebSocket server
+        function connect() {
+            try {
+                updateStatus('Connecting...');
+                log('Attempting to connect to WebSocket server...');
+                
+                socket = new WebSocket('ws://localhost:8765');
+                
+                socket.onopen = () => {
+                    updateStatus('Connected');
+                    log('Connection established!');
+                };
+                
+                socket.onmessage = (event) => {
+                    try {
+                        const data = JSON.parse(event.data);
+                        log(`Received message: ${JSON.stringify(data)}`);
+                    } catch (e) {
+                        log(`Received message: ${event.data}`);
+                    }
+                };
+                
+                socket.onclose = (event) => {
+                    updateStatus('Disconnected');
+                    log(`Connection closed: ${event.code} ${event.reason}`);
+                    socket = null;
+                };
+                
+                socket.onerror = (error) => {
+                    updateStatus('Connection Error');
+                    log(`WebSocket error: ${error}`, true);
+                };
+                
+            } catch (error) {
+                updateStatus('Connection Failed');
+                log(`Failed to connect: ${error}`, true);
+            }
+        }
+        
+        // Disconnect from server
+        function disconnect() {
+            if (socket) {
+                socket.close();
+                socket = null;
+                updateStatus('Disconnected');
+                log('Disconnected from server');
+            }
+        }
+        
+        // Send a drone state message
+        function sendState() {
+            if (!socket) return;
+            
+            const state = {
+                type: 'state',
+                position: {
+                    x: Math.random() * 10 - 5,
+                    y: Math.random() * 5,
+                    z: Math.random() * 10 - 5
+                },
+                rotation: {
+                    x: Math.random() * 10 - 5,
+                    y: Math.random() * 10 - 5,
+                    z: Math.random() * 10 - 5
+                },
+                velocity: {
+                    x: Math.random() * 2 - 1,
+                    y: Math.random() * 2 - 1,
+                    z: Math.random() * 2 - 1
+                },
+                angularVelocity: {
+                    x: Math.random() * 2 - 1,
+                    y: Math.random() * 2 - 1,
+                    z: Math.random() * 2 - 1
+                },
+                timestamp: Date.now()
+            };
+            
+            socket.send(JSON.stringify(state));
+            log(`Sent state: ${JSON.stringify(state)}`);
+        }
+        
+        // Enable external control
+        function enableControl() {
+            if (!socket) return;
+            
+            const config = {
+                type: 'config',
+                externalControl: true,
+                timestamp: Date.now()
+            };
+            
+            socket.send(JSON.stringify(config));
+            log('Enabled external control');
+        }
+        
+        // Disable external control
+        function disableControl() {
+            if (!socket) return;
+            
+            const config = {
+                type: 'config',
+                externalControl: false,
+                timestamp: Date.now()
+            };
+            
+            socket.send(JSON.stringify(config));
+            log('Disabled external control');
+        }
+        
+        // Event listeners
+        connectBtn.addEventListener('click', connect);
+        disconnectBtn.addEventListener('click', disconnect);
+        sendStateBtn.addEventListener('click', sendState);
+        enableControlBtn.addEventListener('click', enableControl);
+        disableControlBtn.addEventListener('click', disableControl);
+        
+        // Initialize status
+        updateStatus('Not Connected');
+    </script>
+</body>
+</html> 

@@ -76,6 +76,12 @@ app.assets.loadFromUrl('models/drone.glb', 'container', function(err, asset) {
         drone.addComponent('script');
         drone.script.create('droneController');
         
+        // Add external interface for Python control
+        drone.script.create('droneInterface', {
+            port: 8765,
+            externalControlEnabled: false  // Start with manual control by default
+        });
+        
         // Add camera controller with explicit parameters
         camera.script.create('cameraController', {
             droneEntity: drone,
