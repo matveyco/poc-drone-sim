@@ -14,6 +14,7 @@ function createTerrainController(app) {
         this.createStartMarker();
         this.createEndMarker();
         this.createUI();
+        this.fireworksEntities = [];
         
         // Make positions available to other scripts
         app.globals = app.globals || {};
@@ -201,7 +202,147 @@ function createTerrainController(app) {
         this.missionCompleteUI.pulseTime = 0;
         this.isPulsing = true;
         
+        // Spawn fireworks on screen
+        this.spawnScreenFireworks();
+        
         console.log("Mission complete!");
+    };
+    
+    // Create screen-based fireworks
+    TerrainController.prototype.spawnScreenFireworks = function() {
+        // Create a container for the fireworks
+        const fireworksContainer = document.createElement('div');
+        fireworksContainer.id = 'fireworks-container';
+        fireworksContainer.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1000;
+            overflow: hidden;
+        `;
+        document.body.appendChild(fireworksContainer);
+        
+        // Function to create an individual firework
+        const createFirework = () => {
+            const firework = document.createElement('div');
+            firework.className = 'firework';
+            
+            // Random position on screen
+            const left = 10 + Math.random() * 80; // 10-90% of screen width
+            const top = 10 + Math.random() * 70; // 10-80% of screen height
+            
+            // Random color
+            const colors = ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff', '#00ffff'];
+            const color = colors[Math.floor(Math.random() * colors.length)];
+            
+            // Random size
+            const size = 20 + Math.random() * 30; // 20-50px
+            
+            firework.style.cssText = `
+                position: absolute;
+                left: ${left}%;
+                top: ${top}%;
+                width: ${size}px;
+                height: ${size}px;
+                border-radius: 50%;
+                background: ${color};
+                box-shadow: 0 0 ${size/2}px ${size/4}px ${color};
+                animation: firework-explode 1s forwards;
+                opacity: 0;
+            `;
+            
+            // Create particles for the explosion
+            for (let i = 0; i < 12; i++) {
+                const particle = document.createElement('div');
+                const angle = (i / 12) * Math.PI * 2;
+                const distance = size * 3;
+                
+                particle.style.cssText = `
+                    position: absolute;
+                    left: calc(50% - 2px);
+                    top: calc(50% - 2px);
+                    width: 4px;
+                    height: 4px;
+                    border-radius: 50%;
+                    background: ${color};
+                    transform-origin: center center;
+                    transform: translate(0, 0);
+                    animation: particle-explode 1s forwards;
+                `;
+                
+                // Set custom properties for animation calculation
+                particle.style.setProperty('--angle', angle);
+                particle.style.setProperty('--distance', distance + 'px');
+                
+                firework.appendChild(particle);
+            }
+            
+            fireworksContainer.appendChild(firework);
+            
+            // Remove firework after animation completes
+            setTimeout(() => {
+                if (firework && firework.parentNode) {
+                    firework.parentNode.removeChild(firework);
+                }
+            }, 1500);
+        };
+        
+        // Add CSS animations
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes firework-explode {
+                0% { transform: scale(0.1); opacity: 0; }
+                25% { transform: scale(1); opacity: 1; }
+                50% { transform: scale(0.8); opacity: 0.8; }
+                100% { transform: scale(0.1); opacity: 0; }
+            }
+            
+            @keyframes particle-explode {
+                0% { transform: translate(0, 0); opacity: 1; }
+                100% { 
+                    transform: translateX(calc(cos(var(--angle)) * var(--distance))) 
+                               translateY(calc(sin(var(--angle)) * var(--distance)));
+                    opacity: 0;
+                }
+            }
+        `;
+        document.head.appendChild(style);
+        
+        // Launch several fireworks initially
+        for (let i = 0; i < 5; i++) {
+            setTimeout(() => createFirework(), i * 300);
+        }
+        
+        // Continue launching fireworks
+        this.fireworkInterval = setInterval(() => {
+            createFirework();
+        }, 800);
+        
+        // Stop after 10 seconds
+        setTimeout(() => {
+            if (this.fireworkInterval) {
+                clearInterval(this.fireworkInterval);
+                this.fireworkInterval = null;
+            }
+        }, 10000);
+    };
+    
+    // Clean up resources
+    TerrainController.prototype.destroy = function() {
+        // Clear the firework interval if it exists
+        if (this.fireworkInterval) {
+            clearInterval(this.fireworkInterval);
+            this.fireworkInterval = null;
+        }
+        
+        // Remove the fireworks container if it exists
+        const fireworksContainer = document.getElementById('fireworks-container');
+        if (fireworksContainer) {
+            document.body.removeChild(fireworksContainer);
+        }
     };
     
     // Update called every frame
