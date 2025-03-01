@@ -48,6 +48,15 @@ function createDroneController(app) {
         this.rotationSpeed = 50;
         this.liftSpeed = 5;
         
+        // External control inputs
+        this._externalInputs = {
+            upDown: 0,      // Vertical control (Space/Shift)
+            forwardBack: 0, // Forward/Back control (W/S)
+            leftRight: 0,   // Left/Right control (A/D)
+            yaw: 0,         // Yaw control (Q/E)
+            lastControl: 0  // Timestamp of last external control
+        }; 
+
         // Position the drone at the start position if available
         if (app.globals && app.globals.startPosition) {
             const startPos = app.globals.startPosition;
@@ -112,25 +121,39 @@ function createDroneController(app) {
     };
     
     DroneController.prototype.processInput = function(dt) {
-        // Directly map keys to expected directions
+        // Variables to store input values
         let forwardInput = 0;
-        if (this.keyboard.isPressed(pc.KEY_S)) forwardInput += 1;
-        if (this.keyboard.isPressed(pc.KEY_W)) forwardInput -= 1;
-        
         let rightInput = 0;
-        if (this.keyboard.isPressed(pc.KEY_A)) rightInput += 1;
-        if (this.keyboard.isPressed(pc.KEY_D)) rightInput -= 1;
-        
-        // For yaw, Q = left rotation, E = right rotation
         let yawInput = 0;
-        if (this.keyboard.isPressed(pc.KEY_Q)) yawInput += 1;
-        if (this.keyboard.isPressed(pc.KEY_E)) yawInput -= 1;
-        
-        // NEW DIRECT VERTICAL CONTROL:
-        // Space = Up, Shift = Down
         let verticalInput = 0;
-        if (this.keyboard.isPressed(pc.KEY_SPACE)) verticalInput += 1;
-        if (this.keyboard.isPressed(pc.KEY_SHIFT)) verticalInput -= 1;
+        
+        // Check if we have fresh external inputs (less than 1 second old)
+        const externalControlActive = this._externalInputs && 
+                                     (Date.now() - this._externalInputs.lastControl < 1000);
+        
+        if (externalControlActive) {
+            // Use external inputs
+            forwardInput = this._externalInputs.forwardBack;
+            rightInput = this._externalInputs.leftRight;
+            yawInput = this._externalInputs.yaw;
+            verticalInput = this._externalInputs.upDown;
+            
+            // Optional: log that we're using external controls (uncomment if needed)
+            // console.log("Using external controls:", forwardInput, rightInput, yawInput, verticalInput);
+        } else {
+            // Use keyboard inputs as before
+            if (this.keyboard.isPressed(pc.KEY_S)) forwardInput += 1;
+            if (this.keyboard.isPressed(pc.KEY_W)) forwardInput -= 1;
+            
+            if (this.keyboard.isPressed(pc.KEY_A)) rightInput += 1;
+            if (this.keyboard.isPressed(pc.KEY_D)) rightInput -= 1;
+            
+            if (this.keyboard.isPressed(pc.KEY_Q)) yawInput += 1;
+            if (this.keyboard.isPressed(pc.KEY_E)) yawInput -= 1;
+            
+            if (this.keyboard.isPressed(pc.KEY_SPACE)) verticalInput += 1;
+            if (this.keyboard.isPressed(pc.KEY_SHIFT)) verticalInput -= 1;
+        }
         
         // Update orientation
         if (yawInput !== 0) {
